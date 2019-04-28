@@ -3,20 +3,13 @@
 # Versão 3
 
 
-# Configurações globais ---------------------------------------------------
-#options(OutDec='.')
-
 
 # Carregando pacotes ------------------------------------------------------
 require('geoR')
 require('Hmisc')
-require('calibrate')
 require('fields')
 require('fBasics')
-require('plotrix')
 require('plot3D')
-require('colorRamps')
-require('RColorBrewer')
 require('viridis')
 
 # Funções -----------------------------------------------------------------
@@ -58,14 +51,15 @@ por_area = function(m, xl){
 
 # Alterando diretório de trabalho -----------------------------------------
 setwd(dir = '~/')
-setwd('Programming/R/Geoestatística/')
+setwd('Programming/R/GeoestatísticaYT/')  # Mude para o seu diretório de trabalho
 
 
 # Carregando os dados -----------------------------------------------------
 dgeo=read.table('Dados_geo.txt', h=T)
 attach(dgeo); names(dgeo)
 
-nome_analise = 'Smax_Caatinga'
+# Nome inicial para salver os arquivos
+nome_analise = 'Erosividade'
 
 
 # Carregando os dados no módulo de geoestatística (geoR) ------------------
@@ -176,7 +170,7 @@ resumo
 
 # Escolha do melhor modelo ------------------------------------------------
 # esferico; exponencial; gaussiano; sentimento
-smfit = sentimento
+smfit = esferico
 
 row.names(resumo) = mesc(smfit$cov.model)
 write.table(x = resumo, file = paste(nome_analise, '_Resumo_Geo.txt', sep = ''))
@@ -189,7 +183,6 @@ y.range <- as.integer(range(Y))
 grid.map=expand.grid(x=seq(from=x.range[1], to=x.range[2], by= (x.range[2] - x.range[1])/ndiv),
                      y=seq(from=y.range[1], to=y.range[2], by=(y.range[2] - y.range[1])/ndiv))
 
-# plot(grid.map)
 
 
 # Carregando limites da borda ---------------------------------------------
@@ -198,8 +191,8 @@ dlmt=read.geodata('Dados_Contorno.txt', h=T, coords.col=1:2, data.col=NULL)
 
 
 # Fazendo Krigagem --------------------------------------------------------
-krg=krige.conv(dGeo, locations=grid.map, krige=krige.control(obj.model=smfit))
-# krg=krige.conv(dGeo, locations=grid.map, krige=krige.control(obj.model=smfit), borders=dlmt)
+# krg=krige.conv(dGeo, locations=grid.map, krige=krige.control(obj.model=smfit))
+krg=krige.conv(dGeo, locations=grid.map, krige=krige.control(obj.model=smfit), borders=dlmt)
 
 
 # Gráfico de contornos ----------------------------------------------------
@@ -207,7 +200,7 @@ contour(krg, f=T, col=viridis(10), nlevels=10)
 
 
 # Configurações para salvar o semivariograma ------------------------------
-par(family=('Times'), las=1, xaxs='i', yaxs='i', mar=c(5,5,2,2), cex.axis = 1.0, cex.lab = 1.2)
+par(family='serif', las=1, xaxs='i', yaxs='i', mar=c(5,5,2,2), cex.axis = 1.0, cex.lab = 1.2)
 plot(svgteorico, type='p',pch=19,col='black' , ylim=c(0,(max(sm$v)+max(sm$v)*0.15)), xlim=c(0,(max(sm$h)+max(sm$h)*0.15)), ylab='', xlab='h (m)')#, yaxt='n')
 vr=var(dgeo$Z)
 abline(v=NULL, h=vr, lty=2, lwd=1, untf=3)
@@ -224,11 +217,11 @@ sl=seq(min(krg$predict), max(krg$predict),by=(max(krg$predict)-min(krg$predict))
 sll=formatC(sl, digits=2, format='f', decimal.mark = ".")
 zlia = range(sl)
 
-xl = c(-350000, 1016258)
-yl = c(7800000, 9900000)
+xl = c(500, 750)      # Intervalo do eixo X
+yl = c(9000, 9250)    # Intervalo do eixo Y
 
 # Mapa
-par(family=('Times'), las=1, xaxs='i', yaxs='i', mar=c(5,5,2,6.5), cex.axis = 1.0, cex.lab = 1.2)
+par(family='serif', las=1, xaxs='i', yaxs='i', mar=c(5,5,2,6.5), cex.axis = 1.0, cex.lab = 1.2)
 plot(dgeo$X,dgeo$Y, type='n', xlab='X (UTM)', ylab='Y (UTM)', yaxt = 'n',
      xlim = xl, ylim = yl)
 axis(side = 2, at = seq(min(Y), max(Y), (max(Y)-min(Y))/5), las = 3)
@@ -237,7 +230,7 @@ contour(krg, add=T, levels=sl, labcex=0.5, lwd=1, labels=sll, drawlabels=F)
 lines(lmt, lwd=2)
 box()
 points(dgeo$X,dgeo$Y, pch='+', col='red')
-colkey(side = 4, length = 0.7, padj = 0.5, shift = 0, dist = 0.05, add = T, cex.axis = 0.9, cex.clab = 1,
+colkey(side = 4, length = 0.7, padj = 0.5, shift = 0, dist = -0.01, add = T, cex.axis = 0.9, cex.clab = 1,
        at = sl, mgp = c(1, 0.3, 0), tcl = -0.2, clim=zlia, labels = sll, col = rev(viridis(numlevel)),
        side.clab = 2, line.clab = -4.2, clab = 'Variavel')
 
@@ -246,7 +239,7 @@ dev.off()
 
 
 # Porcentagens das classes do mapa
-pcm = por_area(m = krg$predicted, xl = sl); pcm
+pcm = por_area(m = krg$predict, xl = sl); pcm
 write.csv(x = pcm, file = paste(nome_analise, '_classes_mapa.csv', sep = ''))
 
 
@@ -262,7 +255,7 @@ sllsd=formatC(slsd, digits=2, format='f', decimal.mark = ".")
 zlsd = range(slsd)
 
 # Mapa
-par(family=('Times'), las=1, xaxs='i', yaxs='i', mar=c(5,5,2,6.5), cex.axis = 1.0, cex.lab = 1.2)
+par(family='serif', las=1, xaxs='i', yaxs='i', mar=c(5,5,2,6.5), cex.axis = 1.0, cex.lab = 1.2)
 plot(dgeo$X,dgeo$Y, type='n', xlab='X (UTM)', ylab='Y (UTM)', yaxt = 'n',
      xlim = xl, ylim = yl)
 axis(side = 2, at = seq(min(Y), max(Y), (max(Y)-min(Y))/5), las = 3)
